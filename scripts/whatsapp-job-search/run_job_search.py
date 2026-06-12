@@ -10,7 +10,7 @@ import json
 import re
 import subprocess
 from datetime import datetime
-import anthropic
+import google.generativeai as genai
 from tavily import TavilyClient
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -168,7 +168,8 @@ def main():
     search_json    = json.dumps(search_results, indent=2)
     print(f"Got {len(search_results)} search results. Calling Claude API...")
 
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    client = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""You are running an automated job search for a Staff Product Manager.
 
 ## Resume
@@ -213,13 +214,8 @@ Return ONLY valid JSON — no markdown, no explanation:
 
 If no new jobs found: {{"new_jobs": [], "summary": "No new qualifying jobs found today."}}"""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    result_text = response.content[0].text.strip()
+    response = client.generate_content(prompt)
+    result_text = response.text.strip()
     # Extract JSON — handle markdown code fences if present
     json_match = re.search(r"\{.*\}", result_text, re.DOTALL)
     if not json_match:

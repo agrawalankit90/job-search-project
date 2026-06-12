@@ -11,7 +11,7 @@ import json
 import re
 import subprocess
 from datetime import datetime
-import anthropic
+import google.generativeai as genai
 from tavily import TavilyClient
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -170,7 +170,8 @@ def main():
     print(f"Found {len(jobs)} target roles.")
 
     tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    client = genai.GenerativeModel("gemini-1.5-flash")
     wb     = load_workbook(XLSX_PATH)
 
     updated = 0
@@ -204,12 +205,8 @@ Confidence guide:
 
 If no contact found: {{"contact_name": "Not found", "contact_role": "", "email": "", "linkedin_url": "", "source": "Search", "confidence": "Low", "notes": "Apply directly via company careers page."}}"""
 
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",   # Haiku is faster + cheaper for structured extraction
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        result_text = response.content[0].text.strip()
+        response = client.generate_content(prompt)
+        result_text = response.text.strip()
         json_match  = re.search(r"\{.*\}", result_text, re.DOTALL)
         if not json_match:
             print(f"  ⚠ Could not parse response for {job['company']}")
