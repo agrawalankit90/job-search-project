@@ -36,7 +36,8 @@ def get_unapplied_p1_p2(xlsx_path):
 
     for row in ws.iter_rows(min_row=2, values_only=True):
         priority = str(row[idx.get("Priority", 1)] or "").strip()
-        status   = str(row[idx.get("Status",   13)] or "").strip().lower()
+        status_idx = idx.get("Status", 13)
+        status   = str(row[status_idx] if status_idx < len(row) else "").strip().lower()
         if priority in ("P1", "P2") and status != "applied":
             jobs.append({
                 "company":   str(row[idx.get("Company Name", 2)] or "").strip(),
