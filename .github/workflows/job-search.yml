@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install google-generativeai tavily-python openpyxl twilio
+      - run: pip install "google-generativeai>=0.8.0" tavily-python openpyxl twilio
       - name: Run Job Search
         if: ${{ inputs.search_type == 'job_search' }}
         env:
