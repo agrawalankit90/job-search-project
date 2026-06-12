@@ -206,9 +206,26 @@ Confidence guide:
 
 If no contact found: {{"contact_name": "Not found", "contact_role": "", "email": "", "linkedin_url": "", "source": "Search", "confidence": "Low", "notes": "Apply directly via company careers page."}}"""
 
-        response = client.generate_content(prompt)
-        result_text = response.text.strip()
-        json_match  = re.search(r"\{.*\}", result_text, re.DOTALL)
+        # Retry logic — respects Gemini's retry_delay on rate limit errors
+        result_text = None
+        for attempt in range(5):
+            try:
+                response    = client.generate_content(prompt)
+                result_text = response.text.strip()
+                break
+            except Exception as e:
+                err = str(e)
+                # Extract retry_delay seconds from error message if present
+                wait_match = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", err)
+                wait_secs  = int(wait_match.group(1)) + 5 if wait_match else 30
+                print(f"  ⚠ Rate limit hit for {job['company']} (attempt {attempt+1}), waiting {wait_secs}s...")
+                time.sleep(wait_secs)
+
+        if not result_text:
+            print(f"  ✗ Skipping {job['company']} after 5 failed attempts")
+            continue
+
+        json_match = re.search(r"\{.*\}", result_text, re.DOTALL)
         if not json_match:
             print(f"  ⚠ Could not parse response for {job['company']}")
             continue
@@ -230,7 +247,7 @@ If no contact found: {{"contact_name": "Not found", "contact_role": "", "email":
         upsert_hr_row(wb, row_data)
         updated += 1
         print(f"  ✓ {contact.get('contact_name', 'N/A')} — {contact.get('confidence', 'Low')} confidence")
-        time.sleep(10)  # 10s gap = max 6 RPM, well within free tier limits
+        time.sleep(2)  # small gap between jobs
 
     wb.save(XLSX_PATH)
     git_commit_push(f"Auto HR search: updated contacts for {updated} roles")
