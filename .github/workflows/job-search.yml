@@ -1,0 +1,39 @@
+name: Job Search Automation
+on:
+  workflow_dispatch:
+    inputs:
+      search_type:
+        description: 'job_search or hr_search'
+        required: true
+      whatsapp_number:
+        description: 'Your WhatsApp number (e.g. +919876543210)'
+        required: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install anthropic tavily-python openpyxl twilio
+      - name: Run Job Search
+        if: ${{ inputs.search_type == 'job_search' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          MY_WHATSAPP_NUMBER: ${{ inputs.whatsapp_number }}
+        run: python scripts/whatsapp-job-search/run_job_search.py
+      - name: Run HR Search
+        if: ${{ inputs.search_type == 'hr_search' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          MY_WHATSAPP_NUMBER: ${{ inputs.whatsapp_number }}
+        run: python scripts/whatsapp-job-search/run_hr_search.py
