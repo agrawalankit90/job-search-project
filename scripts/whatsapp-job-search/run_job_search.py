@@ -169,7 +169,7 @@ def main():
     print(f"Got {len(search_results)} search results. Calling Claude API...")
 
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    client = genai.GenerativeModel("gemini-1.5-flash")
+    client = genai.GenerativeModel("gemini-2.0-flash")
     prompt = f"""You are running an automated job search for a Staff Product Manager.
 
 ## Resume

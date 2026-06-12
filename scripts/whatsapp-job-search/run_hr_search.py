@@ -171,7 +171,7 @@ def main():
 
     tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    client = genai.GenerativeModel("gemini-1.5-flash")
+    client = genai.GenerativeModel("gemini-2.0-flash")
     wb     = load_workbook(XLSX_PATH)
 
     updated = 0
