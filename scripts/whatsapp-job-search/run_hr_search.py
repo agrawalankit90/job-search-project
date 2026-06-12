@@ -230,7 +230,7 @@ If no contact found: {{"contact_name": "Not found", "contact_role": "", "email":
         upsert_hr_row(wb, row_data)
         updated += 1
         print(f"  ✓ {contact.get('contact_name', 'N/A')} — {contact.get('confidence', 'Low')} confidence")
-        time.sleep(4)  # stay within free tier rate limits
+        time.sleep(30)  # stay within free tier rate limits
 
     wb.save(XLSX_PATH)
     git_commit_push(f"Auto HR search: updated contacts for {updated} roles")
