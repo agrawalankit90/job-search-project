@@ -10,6 +10,7 @@ import os
 import json
 import re
 import subprocess
+import time
 from datetime import datetime
 import google.generativeai as genai
 from tavily import TavilyClient
@@ -229,6 +230,7 @@ If no contact found: {{"contact_name": "Not found", "contact_role": "", "email":
         upsert_hr_row(wb, row_data)
         updated += 1
         print(f"  ✓ {contact.get('contact_name', 'N/A')} — {contact.get('confidence', 'Low')} confidence")
+        time.sleep(4)  # stay within free tier rate limits
 
     wb.save(XLSX_PATH)
     git_commit_push(f"Auto HR search: updated contacts for {updated} roles")
