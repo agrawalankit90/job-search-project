@@ -1,0 +1,221 @@
+{
+  "name": "WhatsApp Job Search Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-job-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f27184a5-f83f-4019-974a-528e39332a8f",
+      "name": "Twilio Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-208, 144],
+      "webhookId": "whatsapp-job-search"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
+        "options": {
+          "responseHeaders": {
+            "entries": [{"name": "Content-Type", "value": "text/xml"}]
+          }
+        }
+      },
+      "id": "d2723b58-48c0-424c-8d85-db778359c13a",
+      "name": "Acknowledge Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{
+            "value1": "={{ $json.body.Body.toLowerCase() }}",
+            "operation": "contains",
+            "value2": "job search"
+          }]
+        }
+      },
+      "id": "0b0e0a94-604e-4f7e-ad66-66208290d71d",
+      "name": "Is Job Search?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, 144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{
+            "value1": "={{ $json.body.Body.toLowerCase() }}",
+            "operation": "contains",
+            "value2": "hr search"
+          }]
+        }
+      },
+      "id": "dfbd860c-0ec9-40be-bd49-32669fe3eda3",
+      "name": "Is HR Search?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/YOUR_GITHUB_USERNAME/job-search-project/actions/workflows/job-search.yml/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Accept", "value": "application/vnd.github.v3+json"},
+            {"name": "X-GitHub-Api-Version", "value": "2022-11-28"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"search_type\": \"job_search\",\n    \"whatsapp_number\": \"{{ $('Twilio Webhook').first().json.body.From.replace('whatsapp:', '') }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "2cdcfb33-0dca-4df5-a1c1-2c4cbde2bc87",
+      "name": "Trigger Job Search (GitHub Actions)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [272, 144],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/YOUR_GITHUB_USERNAME/job-search-project/actions/workflows/job-search.yml/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Accept", "value": "application/vnd.github.v3+json"},
+            {"name": "X-GitHub-Api-Version", "value": "2022-11-28"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"search_type\": \"hr_search\",\n    \"whatsapp_number\": \"{{ $('Twilio Webhook').first().json.body.From.replace('whatsapp:', '') }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "1a785637-0831-45a0-9b4a-1cff92e93e81",
+      "name": "Trigger HR Search (GitHub Actions)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [272, 304],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_TWILIO_ACCOUNT_SID:YOUR_TWILIO_AUTH_TOKEN@api.twilio.com/2010-04-01/Accounts/YOUR_TWILIO_ACCOUNT_SID/Messages.json",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "From", "value": "whatsapp:+14155238886"},
+            {"name": "To", "value": "={{ $('Twilio Webhook').first().json.body.From }}"},
+            {"name": "Body", "value": "Got it! Running job search now 🔍 I'll message you when done (~2-3 mins)."}
+          ]
+        },
+        "options": {}
+      },
+      "id": "b08da1f4-49ab-493d-a877-174852e102fe",
+      "name": "Reply: Job Search Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 144]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_TWILIO_ACCOUNT_SID:YOUR_TWILIO_AUTH_TOKEN@api.twilio.com/2010-04-01/Accounts/YOUR_TWILIO_ACCOUNT_SID/Messages.json",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "From", "value": "whatsapp:+14155238886"},
+            {"name": "To", "value": "={{ $('Twilio Webhook').first().json.body.From }}"},
+            {"name": "Body", "value": "Got it! Running HR contact search 📋 I'll message you when done (~3-4 mins)."}
+          ]
+        },
+        "options": {}
+      },
+      "id": "4673ed09-3207-41a1-8499-5316bad5b562",
+      "name": "Reply: HR Search Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_TWILIO_ACCOUNT_SID:YOUR_TWILIO_AUTH_TOKEN@api.twilio.com/2010-04-01/Accounts/YOUR_TWILIO_ACCOUNT_SID/Messages.json",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "From", "value": "whatsapp:+14155238886"},
+            {"name": "To", "value": "={{ $('Twilio Webhook').first().json.body.From }}"},
+            {"name": "Body", "value": "Sorry, I didn't understand that. Send:\n• *run job search* — find new PM jobs\n• *run hr search* — find HR contacts for P1/P2 jobs"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "e9782568-c0fb-4b5b-b6da-d8dbae6a767c",
+      "name": "Reply: Unknown Command",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [272, 448]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Twilio Webhook": {
+      "main": [[
+        {"node": "Acknowledge Twilio", "type": "main", "index": 0},
+        {"node": "Is Job Search?", "type": "main", "index": 0}
+      ]]
+    },
+    "Is Job Search?": {
+      "main": [
+        [{"node": "Trigger Job Search (GitHub Actions)", "type": "main", "index": 0}],
+        [{"node": "Is HR Search?", "type": "main", "index": 0}]
+      ]
+    },
+    "Is HR Search?": {
+      "main": [
+        [{"node": "Trigger HR Search (GitHub Actions)", "type": "main", "index": 0}],
+        [{"node": "Reply: Unknown Command", "type": "main", "index": 0}]
+      ]
+    },
+    "Trigger Job Search (GitHub Actions)": {
+      "main": [[{"node": "Reply: Job Search Started", "type": "main", "index": 0}]]
+    },
+    "Trigger HR Search (GitHub Actions)": {
+      "main": [[{"node": "Reply: HR Search Started", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"},
+  "notes": "SETUP: Replace YOUR_TWILIO_ACCOUNT_SID, YOUR_TWILIO_AUTH_TOKEN, YOUR_GITHUB_USERNAME, and YOUR_N8N_CREDENTIAL_ID with actual values in n8n after importing.",
+  "id": "whatsapp-job-search-v2"
+}
