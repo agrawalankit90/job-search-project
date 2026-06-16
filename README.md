@@ -1,10 +1,10 @@
 # AI-Powered Job Search System — Built with Claude Cowork
 
-A personal job search assistant built entirely using [Claude Cowork](https://claude.ai) — no code required. Just a folder, markdown files, a custom AI skill, and the right prompts.
+A personal job search assistant combining [Claude Cowork](https://claude.ai) no-code AI workflows with an optional WhatsApp automation layer for hands-free job hunting.
 
-This project turns Claude into a persistent, context-aware job search partner that knows who you are, what you're targeting, and can generate tailored resumes, cover letters, outreach messages, company research, 30-day action plans, and a live job tracker — all from your own files.
+This project turns Claude into a persistent, context-aware job search partner that knows who you are, what you're targeting, and can generate tailored resumes, cover letters, outreach messages, company research, 30-day action plans, and a live job tracker — all from your own files. The automation layer (Steps 9 & 11) lets you trigger job searches and HR contact lookups by sending a single WhatsApp message — results are committed to GitHub and confirmed back on WhatsApp.
 
-![AI Job Search System Flowchart](job-search-flowchart.png)
+![AI Job Search System Flowchart](job-search-flowchart.svg)
 
 ---
 
@@ -23,9 +23,10 @@ This project turns Claude into a persistent, context-aware job search partner th
    - [Step 6 — Build the Job Strategy Planner Skill](#step-6--build-the-job-strategy-planner-skill)
    - [Step 7 — Run the Skill to Generate Your Strategy](#step-7--run-the-skill-to-generate-your-strategy)
    - [Step 8 — Build a Company-Specific Package (Plan Mode)](#step-8--build-a-company-specific-package-plan-mode)
-   - [Step 9 — Find & Track Jobs](#step-9--find--track-jobs)
+   - [Step 9 — Find & Track Jobs (now automated)](#step-9--find--track-jobs-now-automated)
    - [Step 10 — Apply for Jobs](#step-10--apply-for-jobs)
-   - [Step 11 — Find HR Contacts & Reach Out Directly](#step-11--find-hr-contacts--reach-out-directly)
+   - [Step 11 — Find HR Contacts & Reach Out Directly (now automated)](#step-11--find-hr-contacts--reach-out-directly-now-automated)
+   - [Step 12 — WhatsApp Automation Setup](#step-12--whatsapp-automation-setup)
 6. [How to Run It](#6-how-to-run-it)
 7. [Prompt Reference (All Prompts in One Place)](#7-prompt-reference-all-prompts-in-one-place)
 
@@ -42,6 +43,8 @@ Job searching is repetitive, manual, and mentally draining. This project automat
 - Creates company-specific packages (tailored resume, cover letter, outreach messages, company research, 30-day action plan) with a single prompt
 - Tracks all job opportunities in a structured xlsx, prioritized by match percentage, location, and posting date
 - Walks you through applying to jobs — opening each link, matching the JD to your resume, getting your confirmation, and updating the tracker
+- **[Automated]** Finds new PM job openings on demand — send "run job search" on WhatsApp, results appear in your xlsx within 3 minutes
+- **[Automated]** Searches for HR contacts (recruiters, hiring managers) for all P1/P2 unapplied jobs — send "run hr search" on WhatsApp
 
 **Who this is for:**
 
@@ -82,6 +85,43 @@ In Claude Cowork, you can reference any file in your connected folder using `@fi
 
 For example: `@my-resume.md` makes Claude read your resume before acting on whatever you ask next.
 
+### Concept 4: WhatsApp Automation Pipeline
+
+Steps 9 and 11 are now fully automated via a webhook-driven pipeline. You send a WhatsApp message → the system does the work → results are saved to GitHub and you receive a WhatsApp confirmation.
+
+```
+WhatsApp Message ("run job search" / "run hr search")
+    │
+    ▼
+Twilio (receives message, forwards to n8n webhook)
+    │
+    ▼
+n8n Workflow (routes by command, sends acknowledgement back to WhatsApp)
+    │
+    ▼
+GitHub Actions (triggered via workflow_dispatch API)
+    │
+    ├── run_job_search.py  → Tavily web search → Gemini AI scoring → appends to recommended_jobs.xlsx
+    └── run_hr_search.py   → Tavily web search → regex extraction → updates HR_repository sheet
+    │
+    ▼
+Git commit + push → GitHub
+    │
+    ▼
+WhatsApp confirmation message with result summary
+```
+
+**Key components:**
+
+| Component | Role |
+|---|---|
+| Twilio WhatsApp Sandbox | Receives your WhatsApp message and forwards to n8n |
+| n8n (self-hosted or cloud) | Routes commands, sends ack, calls GitHub Actions API |
+| GitHub Actions | Runs Python scripts in a clean Ubuntu environment |
+| `run_job_search.py` | Tavily search + Gemini AI to score/rank jobs; appends to xlsx |
+| `run_hr_search.py` | Tavily search + regex to extract HR contacts; updates HR_repository sheet |
+| `recommended_jobs.xlsx` | Single source of truth — updated by both scripts and committed to GitHub |
+
 ### How a Session Works
 
 ```
@@ -96,7 +136,10 @@ You type a prompt with @file references
     ├── Resume tailoring?     → Claude uses @my-resume.md + company JD
     ├── Company package?      → Plan mode builds 6 files in sequence
     ├── Job search?           → Claude searches, ranks, appends to recommended_jobs.xlsx
-    └── Apply?                → Claude opens each link, matches JD, waits for your go/no-go
+    │                            OR send "run job search" on WhatsApp for fully automated run
+    ├── Apply?                → Claude opens each link, matches JD, waits for your go/no-go
+    └── HR contacts?          → Claude searches and populates HR_repository sheet
+                                 OR send "run hr search" on WhatsApp for fully automated run
 ```
 
 ### Key Design Decisions
@@ -117,6 +160,16 @@ job-search-project/                    ← Global folder (connected to Claude Co
 ├── CLAUDE.md                          ← Global identity: who you are, how you work
 ├── README.md                          ← This file
 │
+├── .github/
+│   └── workflows/
+│       └── job-search.yml             ← GitHub Actions: runs job search & HR search scripts
+│
+├── scripts/
+│   └── whatsapp-job-search/
+│       ├── run_job_search.py          ← Automated job search: Tavily + Gemini → xlsx
+│       ├── run_hr_search.py           ← Automated HR search: Tavily + regex → HR_repository sheet
+│       └── n8n-workflow.json          ← n8n workflow export (import this into your n8n instance)
+│
 ├── job-strategy-planner/
 │   └── SKILL.md                       ← Custom Claude skill for job strategy generation
 │
@@ -126,6 +179,7 @@ job-search-project/                    ← Global folder (connected to Claude Co
     ├── job-strategy-plan-template.md  ← Manually written strategy template (input to skill)
     ├── job-strategy-ankit-2026.md     ← Generated strategy output (produced by skill)
     ├── recommended_jobs.xlsx          ← Live job tracker: ranked, prioritized, with status
+    │                                     (also contains HR_repository sheet)
     │
     └── Agoda/                         ← Company-specific package (one folder per company)
         ├── agoda-company-research.md  ← Company overview, PM culture, product bets
@@ -142,10 +196,19 @@ job-search-project/                    ← Global folder (connected to Claude Co
 
 ## 4. Prerequisites
 
-- **Claude Desktop App** with Cowork mode enabled
-- **A resume** in PDF format
-- **A LinkedIn profile** (URL is enough — Claude can reference it)
-- No coding knowledge required. No installations. No APIs.
+**For the core system (Steps 1–11 manual):**
+- Claude Desktop App with Cowork mode enabled
+- A resume in PDF format
+- A LinkedIn profile (URL is enough)
+- No coding or API keys required
+
+**For the WhatsApp automation (Step 12):**
+- GitHub account with the repo pushed (for GitHub Actions)
+- [Tavily API key](https://tavily.com) (free tier) — for web search
+- [Gemini API key](https://aistudio.google.com) (free tier) — for job scoring in `run_job_search.py`
+- [Twilio account](https://twilio.com) with WhatsApp Sandbox enabled (free)
+- [n8n](https://n8n.io) instance — cloud or self-hosted (free tier available)
+- GitHub Personal Access Token (PAT) with `repo` + `workflow` scopes
 
 ---
 
@@ -399,7 +462,9 @@ Claude will respond with a plan listing all 6 files it intends to create and the
 
 ---
 
-### Step 9 — Find & Track Jobs
+### Step 9 — Find & Track Jobs (now automated)
+
+> **Automated option:** If you've completed Step 12, just send *"run job search"* on WhatsApp. The pipeline does everything below automatically and messages you when done (~2–3 min). Skip to Step 12 to set it up.
 
 **Why:** Instead of manually scrolling job boards, you can have Claude search for open roles, match them against your resume and strategy, rank them, and maintain a structured tracker — all in one prompt.
 
@@ -503,7 +568,9 @@ for any job where the application was submitted.
 
 ---
 
-### Step 11 — Find HR Contacts & Reach Out Directly
+### Step 11 — Find HR Contacts & Reach Out Directly (now automated)
+
+> **Automated option:** If you've completed Step 12, just send *"run hr search"* on WhatsApp. The pipeline searches for HR contacts across all P1/P2 unapplied jobs, updates `HR_repository`, pushes to GitHub, and messages you when done (~3–4 min). Skip to Step 12 to set it up.
 
 **Why:** Applying through job portals is table stakes. The faster path to an interview is a direct message to the recruiter or hiring manager — before or immediately after submitting the application. This step finds the right person at each company, constructs their email, and logs everything in the `HR_repository` sheet of your `recommended_jobs.xlsx`.
 
@@ -601,10 +668,12 @@ Once you have the HR_repository data, reference it when building company package
 
 ### Daily Usage (recurring)
 
-| Task | Prompt to use | Output |
+| Task | How to trigger | Output |
 |---|---|---|
-| Find new job openings | Step 9 prompt | Appends to `recommended_jobs.xlsx` |
-| Find HR contacts for P1/P2 jobs | Step 11 prompt | Populates `HR_repository` sheet in xlsx |
+| Find new job openings | Send *"run job search"* on WhatsApp (automated) | Appended to `recommended_jobs.xlsx` on GitHub |
+| Find new job openings | Step 9 Claude prompt (manual) | Appended to `recommended_jobs.xlsx` |
+| Find HR contacts for P1/P2 jobs | Send *"run hr search"* on WhatsApp (automated) | `HR_repository` sheet updated on GitHub |
+| Find HR contacts for P1/P2 jobs | Step 11 Claude prompt (manual) | `HR_repository` sheet in xlsx |
 | Apply to P1 jobs | Step 10 prompt | Updates xlsx with `applied` status |
 | Build a company package | Step 8 prompt (Plan Mode) | New folder with 6 files |
 | Update your strategy | Re-run Step 7 skill | Updated strategy file |
@@ -825,6 +894,125 @@ Create the new sheet with name HR_repository in the same xlsx file, if it does n
 Add/append all these details in that sheet. If the job is already listed in the sheet then update
 it else add a new row.
 ```
+
+---
+
+---
+
+### Step 12 — WhatsApp Automation Setup
+
+**Why:** Steps 9 and 11 are powerful but require you to open Claude, reference files, and wait for a session to complete. This step wires them up to WhatsApp so you can kick off a job search or HR contact lookup from your phone in seconds — results appear in your xlsx on GitHub automatically.
+
+**How it works:** WhatsApp message → Twilio → n8n → GitHub Actions → Python script → xlsx updated → WhatsApp confirmation.
+
+---
+
+#### 12a — Push the repo to GitHub
+
+The automation scripts live in `scripts/whatsapp-job-search/` and the workflow in `.github/workflows/job-search.yml`. Push everything to a GitHub repo:
+
+```bash
+git init
+git remote add origin https://github.com/YOUR_USERNAME/job-search-project.git
+git add .
+git commit -m "Initial commit"
+git push origin main
+```
+
+---
+
+#### 12b — Add GitHub Secrets
+
+In your repo → Settings → Secrets and variables → Actions, add these secrets:
+
+| Secret name | Value |
+|---|---|
+| `GH_PAT` | GitHub Personal Access Token (repo + workflow scopes) |
+| `TAVILY_API_KEY` | Your Tavily API key |
+| `GEMINI_API_KEY` | Your Gemini API key (used by job search only) |
+| `TWILIO_ACCOUNT_SID` | Your Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | Your Twilio Auth Token |
+
+---
+
+#### 12c — Set Up Twilio WhatsApp Sandbox
+
+1. Go to [Twilio Console](https://console.twilio.com) → Messaging → Try it out → Send a WhatsApp message
+2. Follow the sandbox join instructions (send a WhatsApp message to the Twilio number)
+3. Note your Twilio sandbox number (e.g., `+14155238886`) — it's hardcoded in the Python scripts as `TWILIO_FROM`
+
+---
+
+#### 12d — Import and Configure n8n Workflow
+
+1. Open your n8n instance
+2. Import `scripts/whatsapp-job-search/n8n-workflow.json`
+3. In the workflow, update these placeholders with real values:
+   - `YOUR_TWILIO_ACCOUNT_SID` and `YOUR_TWILIO_AUTH_TOKEN` — in all three "Reply" HTTP Request nodes (in the URL field)
+   - `YOUR_GITHUB_USERNAME` — in both "Trigger Job Search" and "Trigger HR Search" nodes
+   - `YOUR_N8N_CREDENTIAL_ID` — configure a Header Auth credential with `Authorization: token YOUR_GITHUB_PAT` and reference it in both GitHub trigger nodes
+4. Activate the workflow (toggle to Published/Active)
+
+**Workflow node map:**
+
+| Node | Type | What it does |
+|---|---|---|
+| Twilio Webhook | Webhook | Receives POST from Twilio when you send a WhatsApp message |
+| Acknowledge Twilio | Respond to Webhook | Returns empty TwiML `<Response/>` immediately (required by Twilio) |
+| Is Job Search? | IF | Checks if message body contains "job search" |
+| Is HR Search? | IF | Checks if message body contains "hr search" |
+| Trigger Job Search (GitHub Actions) | HTTP Request | POSTs to GitHub API to dispatch `job-search.yml` with `search_type: job_search` |
+| Trigger HR Search (GitHub Actions) | HTTP Request | POSTs to GitHub API to dispatch `job-search.yml` with `search_type: hr_search` |
+| Reply: Job Search Started | HTTP Request | Sends WhatsApp ack back to you via Twilio REST API |
+| Reply: HR Search Started | HTTP Request | Sends WhatsApp ack back to you via Twilio REST API |
+| Reply: Unknown Command | HTTP Request | Sends help message if command not recognized |
+
+---
+
+#### 12e — Connect Twilio to n8n
+
+In Twilio → Messaging → Sandbox settings → "When a message comes in", paste your n8n **production** webhook URL:
+
+```
+https://YOUR_N8N_INSTANCE/webhook/whatsapp-job-search
+```
+
+> Use the **Production URL** (not the Test URL) — they use different JSON structures and the workflow is built for production.
+
+---
+
+#### 12f — Trigger it
+
+Send any of these messages to your Twilio WhatsApp number:
+
+| Message | What happens |
+|---|---|
+| `run job search` | Searches for new PM jobs, scores with Gemini, appends to xlsx |
+| `run hr search` | Finds HR contacts for all P1/P2 unapplied jobs, updates HR_repository |
+
+Results are committed to GitHub and you receive a WhatsApp confirmation with a summary and link to the updated xlsx.
+
+---
+
+#### How the scripts work
+
+**`run_job_search.py`**
+1. Reads `my-resume.md` and `job-strategy-ankit-2026.md` for context
+2. Runs 7 targeted Tavily searches for PM roles matching your profile
+3. Sends all results to Gemini (`gemini-2.0-flash-lite`) to score, filter (≥60% match), and rank
+4. Appends new jobs to `recommended_jobs.xlsx` (skips duplicates)
+5. Commits and pushes to GitHub
+6. Sends WhatsApp summary with job count and xlsx link
+
+**`run_hr_search.py`**
+1. Reads all P1/P2 unapplied rows from `recommended_jobs.xlsx`
+2. For each role, runs 3 Tavily searches (recruiter name, LinkedIn, email)
+3. Extracts contact info via regex — LinkedIn URLs, emails, names near recruiter keywords
+4. Upserts rows into `HR_repository` sheet with confidence level (High/Medium/Low)
+5. Commits and pushes to GitHub
+6. Sends WhatsApp summary with contact count and xlsx link
+
+> No LLM is used in `run_hr_search.py` — extraction is entirely regex-based to avoid API rate limits.
 
 ---
 
